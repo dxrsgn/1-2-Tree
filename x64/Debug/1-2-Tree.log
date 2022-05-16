@@ -1,0 +1,4 @@
+﻿  1-2-Tree.cpp
+D:\VS repos\1-2-Tree\1-2-Tree\1-2-Tree.h(116,19): warning C4267: 'initializing': conversion from 'size_t' to 'char', possible loss of data
+D:\VS repos\1-2-Tree\1-2-Tree\1-2-Tree.h(117,19): warning C4267: 'initializing': conversion from 'size_t' to 'char', possible loss of data
+  1-2-Tree.vcxproj -> D:\VS repos\1-2-Tree\x64\Debug\1-2-Tree.exe
