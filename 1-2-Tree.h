@@ -6,9 +6,6 @@
 
 
 struct Node {
-    //Исходя из материалов лекций я решил не создавать отдельную переменную для next и добавил её как бит в ключ
-    //пусть узел имеет вес 3 (11), тогда если next = 0, key = 6 (110), иначе если next = 1, key = 7 (111)
-    //P.S. это было очень плохим решением в плане разработки программы с таким условием...очень больным решением.....
     int key;
     Node* left, * right;
 	int childCnt;
@@ -19,13 +16,10 @@ struct Node {
 	friend class OneTwoTree;
 };
 
-
-/////////////////////////Итераторы/////////////////////////////////
-//Эти итераторы надо бы раскидать в другой файл
 using MyStack = std::stack<std::pair<Node*, int>>;
 struct myiter : public std::iterator<std::forward_iterator_tag, int> {
-    Node* Ptr;   //Реальный указатель
-    MyStack St;  //Стек с путём от корня дерева
+    Node* Ptr;   
+    MyStack St;  
     myiter(Node* p = nullptr) : Ptr(p) { }
     myiter(Node* p, const MyStack&& St) : Ptr(p), St(move(St)) { }
     bool operator == (const myiter& Other) const { return Ptr == Other.Ptr; }
@@ -62,9 +56,6 @@ myiter& myiter::operator++()
     return (*this);
 }
 
-
-//Недоделано
-//ИТЕРАТОР ВСТАВКИ (универсальный)
 template <typename Container, typename Iter = myiter>
 class outiter : public std::iterator<std::output_iterator_tag, typename Container::value_type>
 {
@@ -85,16 +76,13 @@ public:
     outiter<Container>& operator++ (int) { return *this; }
 };
 
-// Функция для создания итератора вставки
 template <typename Container, typename Iter>
 inline outiter<Container, Iter> inserter(Container& c, Iter it)
 {
     return outiter<Container, Iter>(c, it);
 }
-/////////////////////////Итераторы/////////////////////////////////
 
 
-/////////////////////////Дерево и его функции/////////////////////////////////
 class OneTwoTree {
     private:
         static size_t tags;
@@ -102,13 +90,11 @@ class OneTwoTree {
         Node* root;
         std::vector<myiter> seq;
         int count, height;
-       // myiter last = nullptr; Можно было бы сделать последний итератор как член класса, но потом
+       // myiter last = nullptr; 
     public:
         using key_type = int;
         using value_type = int;
         using key_compare = std::less<int>;
-
-
 
         OneTwoTree() : root(nullptr), height(0), count(0), tag('A'+tags++) { }
         OneTwoTree(int k) : tag('A' + tags++) { this->insert(k); }
@@ -117,7 +103,7 @@ class OneTwoTree {
         OneTwoTree(MyIt a, MyIt b) : OneTwoTree() {
             myiter last = nullptr;
             while (a != b) {
-                last = insert(*a++, last).first;
+                last = insert(*a++, nullptr).first;
             }
         };
         OneTwoTree(std::initializer_list<int> list) : OneTwoTree() {
@@ -183,8 +169,16 @@ class OneTwoTree {
             OneTwoTree result(*this); return (result ^= rgt);
         }
 
+        //Получение по порядковому номеру
+        int operator [] (int index) {
+            if (index < count) return *seq[index];
+            else throw std::out_of_range("Out of range");
+        }
+
+        void merge(const OneTwoTree& rgt);
+
         int size() { return count; }
-        void swap(OneTwoTree& rgt) //Обмен содержимого двух ДДП
+        void swap(OneTwoTree& rgt) 
         {
             std::swap(tag, rgt.tag); std::swap(root, rgt.root);
             std::swap(count, rgt.count); std::swap(height, rgt.height);
@@ -194,7 +188,28 @@ class OneTwoTree {
         myiter begin() const;
         myiter end() const { return myiter(nullptr); }
 
-        std::pair<myiter, bool> insert(int k, myiter where = nullptr);//Если не указан итератор - свободная вставка
+        //Получение итератора по ключу
+        std::pair<myiter, bool> findIter(int k) {
+            myiter it(root);
+            while (it != nullptr && (*it >> 1) != k) it++;
+
+            if (it != nullptr) return std::make_pair(it, true);
+            else return std::make_pair(it, false);
+        }
+        //Получение порядкового номера по ключу
+        std::pair<int, bool> findInd(int key) {
+            int i = 0;
+            bool error = true;
+            for (; i < seq.size(); i++) {
+                if ((*seq[i] >> 1) == key) {
+                    error = false;
+                    break;
+                }
+            }
+            return std::make_pair(i, error);
+        }
+
+        std::pair<myiter, bool> insert(int k, myiter where = nullptr);
 };
 
 myiter OneTwoTree::begin() const { //Поиск первого элемента множества
@@ -208,7 +223,8 @@ myiter OneTwoTree::begin() const { //Поиск первого элемента множества
     }
     return myiter(p, move(St)); //Создаём итератор, передаём ему стек
 }
-//Вставка узла
+
+
 std::pair<myiter, bool> OneTwoTree::insert(int k, myiter where)
 {
     Node* t{ root };
@@ -228,7 +244,7 @@ std::pair<myiter, bool> OneTwoTree::insert(int k, myiter where)
     }
     else {  //Начать с места предыдущей вставки
         t = where.Ptr;
-        St = move(where.St); // Взять стек из итератора
+        St = std::move(where.St); // Взять стек из итератора
     }
     while (cont) { //Поиск по дереву
         if (k == t->key>>1)    // Выход «вставка не понадобилась»
@@ -347,6 +363,22 @@ std::pair<myiter, bool> OneTwoTree::insert(int k, myiter where)
         }   
     }   
     ++count; //Счёт мощности
-    return make_pair(myiter(t, move(St)), true);
+
+    //Простой поиск последнего места вставки.
+    return std::make_pair(findIter(k).first, true);
+
+    //return make_pair(myiter(t, move(St)), true);
 };
+
+void OneTwoTree::merge(const OneTwoTree& rgt) {
+    std::vector<myiter> temp(rgt.seq), res;
+    auto le = [](myiter a, myiter b)->bool { return *a < *b; }; 
+    std::sort(temp.begin(), temp.end(), le);
+    std::merge(seq.begin(), seq.end(), temp.begin(),
+        temp.end(),
+        std::back_inserter(res), le); 
+    insert(rgt.begin(), rgt.end()); 
+    seq.swap(res);
+}
+
 
