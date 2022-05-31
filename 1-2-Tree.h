@@ -11,7 +11,7 @@ struct Node {
     Node* left, * right;
     int iterCount;
     bool next;
-    std::vector<std::vector<myiter>::iterator> iters;
+    std::vector<std::vector<myiter>::iterator> iters;//Места итераторов на этот узел в последовательности
 
     bool operator == (const Node& Other) const { return key == Other.key; }
     bool operator != (const Node& Other) const { return !(*this == Other); }
@@ -32,7 +32,7 @@ struct Node {
 
 };
 
-
+//------------------------Итераторы-----------------------------------////
 using MyStack = std::stack<std::pair<Node*, int>>;
 struct myiter : public std::iterator<std::forward_iterator_tag, int> {
     Node* Ptr;
@@ -100,7 +100,7 @@ inline outiter<Container, Iter> inserter(Container& c, Iter it)
     return outiter<Container, Iter>(c, it);
 }
 
-
+//------------------------Дерево и его функции-----------------------------------////
 class OneTwoTree {
 private:
     static size_t tags;
@@ -114,19 +114,15 @@ public:
     using value_type = int;
     using key_compare = std::less<int>;
 
-    std::vector<myiter>& get_seq() { return seq; }
-    Node* get_root() { return root; }
-
     OneTwoTree() : root(nullptr), height(0), count(0), tag('A' + tags++) { }
     OneTwoTree(int k) : tag('A' + tags++) {
-        std::pair<myiter, myiter> ret = insert(k, nullptr);
-        std::vector<myiter>::iterator it = seq.insert(seq.end(), ret.second);
-        ret.second.Ptr->addIter(it);
+        std::pair<myiter, bool> ret = insert(k, nullptr);
     }
 
     template<typename MyIt>
     OneTwoTree(MyIt a, MyIt b, bool mode = false) : OneTwoTree() {
         OneTwoTree temp;
+        temp.seq.reserve(std::distance(a, b) + 1);
         std::copy(a, b, inserter(temp, myiter(nullptr)));
         swap(temp);
     };
@@ -248,7 +244,7 @@ public:
     void Display(std::string s);
 
 
-    std::pair<myiter, myiter> insert(int k, myiter where = nullptr, bool set_mode = true);
+    std::pair<myiter, bool> insert(int k, myiter where = nullptr, bool set_mode = true);
 };
 
 myiter OneTwoTree::begin() const { //Поиск первого элемента множества
@@ -268,7 +264,7 @@ myiter OneTwoTree::begin() const { //Поиск первого элемента множества
 //если insert применяется для последовательности, то sequence_mode == false, и тогда в вектор seq добавляются
 // дубликаты
 //иначе при использовании insert в операциях над множествами set_mode == true, при вставке дубликаты игнорируются
-std::pair<myiter, myiter> OneTwoTree::insert(int k, myiter where, bool set_mode)
+std::pair<myiter, bool> OneTwoTree::insert(int k, myiter where, bool set_mode)
 {
     Node* t{ root }, *inserted = nullptr;
     bool cont{ true }, up{ false };
@@ -284,7 +280,7 @@ std::pair<myiter, myiter> OneTwoTree::insert(int k, myiter where, bool set_mode)
             retIter = myiter(root, std::move(St));
             std::vector<myiter>::iterator it = seq.insert(seq.end(), retIter);
             root->addIter(it);
-            return std::make_pair(retIter, retIter); // и выход
+            return std::make_pair(retIter, true); // и выход
         }
         else St.push(std::make_pair(root, 1));
         // Инициализация стека: корень; случай 1
@@ -300,7 +296,7 @@ std::pair<myiter, myiter> OneTwoTree::insert(int k, myiter where, bool set_mode)
                 std::vector<myiter>::iterator it = seq.insert(seq.end(), retIter);
                 t->addIter(it);
             }
-            return std::make_pair(retIter, retIter);
+            return std::make_pair(retIter, false);
         }
         if (k < t->key) {
             if (t->left) { //Идём влево
@@ -339,7 +335,7 @@ std::pair<myiter, myiter> OneTwoTree::insert(int k, myiter where, bool set_mode)
                     std::vector<myiter>::iterator it = seq.insert(seq.end(), retIter);
                     t->right->addIter(it);
                 }
-                return std::make_pair(retIter, retIter);
+                return std::make_pair(retIter, false);
             }
             else {
                 if (t->right->right) { //Есть путь вниз
@@ -413,19 +409,16 @@ std::pair<myiter, myiter> OneTwoTree::insert(int k, myiter where, bool set_mode)
         }
     }
     ++count; //Счёт мощности
-
-    //Простой поиск последнего места вставки.
-   // retIter = findIter(k).first;
-  //  if (set_mode) {
+    
+    //Вставка в последовательность итератора на вставленный узел
     std::vector<myiter>::iterator it = seq.insert(seq.end(), myiter(inserted));
     inserted->addIter(it);
-  //  }
     
-    //1ый итератор для вставки в дерево, 2оый для вставки в последовательность
-    return make_pair(myiter(t, move(St)), myiter(inserted));
+    //Возвращаем итератор для вставки в дерево
+    return make_pair(myiter(t, move(St)), true);
 };
 
-
+//Обменивает итераторы двух узлов в последовательности
 void OneTwoTree::swapSeq(std::vector<std::vector<myiter>::iterator>& a, std::vector<std::vector<myiter>::iterator>& b) {
     Node* anode = a[0]->Ptr, * bnode = b[0]->Ptr;
     if (a.size() > b.size()) {
@@ -443,7 +436,7 @@ void OneTwoTree::swapSeq(std::vector<std::vector<myiter>::iterator>& a, std::vec
 }
 
 
-
+//------------------------Функции последовательностей-----------------------------------////
 void OneTwoTree::merge(const OneTwoTree& rgt) {
     std::vector<myiter> temp(rgt.seq), res;
     auto le = [](myiter a, myiter b)->bool { return *a < *b; }; //Критерий
@@ -463,7 +456,7 @@ void OneTwoTree::concat(const OneTwoTree& rgt) {
 
     res.insert(res.end(), rgt.seq.begin(), rgt.seq.end());
 
-    temp.seq.reserve(res.size());//Защита от инвалидации итераторов
+    temp.seq.reserve(res.size()+1);//Защита от инвалидации итераторов
     myiter last = nullptr;
     for (auto x : res) last = temp.insert(*x, last, false).first;
     swap(temp);
@@ -480,7 +473,7 @@ void OneTwoTree::change(const OneTwoTree& rgt, int p) {
             std::copy(seq.begin() + q, seq.end(),
                 back_inserter(res));
         }
-        temp.seq.reserve(res.size());//Защита от инвалидации итераторов
+        temp.seq.reserve(res.size()+1);//Защита от инвалидации итераторов
         myiter last = nullptr;
         for (auto x : res) last = temp.insert(*x, last, false).first;
         swap(temp);
@@ -488,7 +481,7 @@ void OneTwoTree::change(const OneTwoTree& rgt, int p) {
 }
 
 
-
+//------------------------Вывод дерева-----------------------------------////
 using namespace std;
 
 const int FIRSTROW = 1, SECONDROW = 10, FIRSTCOL = 48, //Параметры вывода на экран
@@ -521,7 +514,7 @@ int setval(string& s, int pos, string val) {
 }
 
 
-void OneTwoTree::Display(string s)		// Вывод дерева в целом
+void OneTwoTree::Display(string s)		
 {
     int col = FIRSTCOL, row = firstrow;
     if (!firstrow) clrscr();
