@@ -2,130 +2,109 @@
 //
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 #include "1-2-Tree.h"
+#include <ctime>
+#include <chrono>
 
-//merge concat change
+
+void PrepareAnd(OneTwoTree& first, OneTwoTree& second, const int quantity, const int lim) {
+    for (int i = 0; i < quantity; ++i) { //Подготовка пересечения:
+        int x = rand() % lim;		// добавление общих эл-тов
+        first.insert(x, nullptr, true);
+        first.insert(x, nullptr, true);
+    }
+}
 
 size_t OneTwoTree::tags = 0;
 int main()
 {
 	std::setlocale(LC_ALL, "Russian");
-	showscr();
-	OneTwoTree A = { 5, 7, 12, 19, 24, 31 };
-	A.Display("A");
-	cin.get();
-	clrscr();
-	OneTwoTree B = { 5, 7, 12, 19, 24, 31, 40, 41 };
-	B.Display("B");
-	cin.get();
-	clrscr();
 
-	OneTwoTree C = { 3, 11, 21 };
-	C.Display("C");
-	cin.get();
-	clrscr();
+    srand((unsigned int)7); //Пока здесь константа, данные повторяются
+ //    srand((unsigned int)time(nullptr)); //Разблокировать для случайных данных
+    bool debug = false; //false, чтобы запретить отладочный вывод
+    //auto MaxMul = 5;
+    auto DebOut = [debug](OneTwoTree& t) { if (debug) {
+        t.Display(); cin.get();
+    }};    
+    int middle_power = 0, set_count = 0;
+    auto Used = [&](OneTwoTree& t) { middle_power += t.get_seq_size();
+    ++set_count; };
+    auto rand = [](int d) { return std::rand() % d; }; //Лямбда-функция!
 
-	OneTwoTree D = { 11, 17, 21 };
-	D.Display("D");
-	cin.get();
-	clrscr();
+    std::ofstream fout("./in.txt"); //Открытие файла для результатов
+    int p, key_lim;
+    //int q_and(rand(MaxMul) + 1);
 
-	OneTwoTree E = { 5, 7, 17, 21, 32 };
-	E.Display("E");
-	cin.get();
-	clrscr();
+    for (p = 20; p < 220; p++) {
+       // int p = rand(p_lim) + 1;
+        key_lim = p * 2; // Универсум ключей
+        //=== Данные ===
+        OneTwoTree A(p, key_lim, 'A');
+        OneTwoTree B(p, key_lim, 'B');
+        OneTwoTree C(p, key_lim, 'C');
+        OneTwoTree D(p, key_lim, 'D');
+        OneTwoTree E(p, key_lim, 'E');
+        OneTwoTree G(p, key_lim, 'G');
+        OneTwoTree H(p, key_lim, 'H');
+        OneTwoTree R(p, key_lim, 'R');
 
-	OneTwoTree A_1 = A ^ B;
-	A_1.Display("A xor B");
-	cin.get();
-	clrscr();
-
-	A_1 |= C;
-	A_1.Display("A xor B | C");
-	cin.get();
-	clrscr();
-
-	A_1 &= D;
-	A_1.Display("A xor B | C & D");
-	cin.get();
-	clrscr();
-
-	A_1 |= E;
-	E.Display("A xor B | C & D | E");
-	cin.get();
-	clrscr();
-
-	std::cout << "Операции с последовательностями";
-	OneTwoTree A1 = { 5, 7, 12, 19, 24, 31 };
-	A1.Display("A1");
-	cin.get();
-	clrscr();
-
-	OneTwoTree B1 = { 1, 6, 12, 13, 19, 31, 41 };
-	B1.Display("B1");
-	cin.get();
-	clrscr();
+        if (debug) showscr();
+        if (debug) A.Display(); Used(A);
+        if (debug) B.Display(); Used(B);
 
 
-	A1.merge(B1);
-	A1.Display("A1 merge B1");
-	cin.get();
-	clrscr();
+        //=== Цепочка операций ===
+        // (Операция пропускается (skipped!), если аргументы некорректны)
+        //Идёт суммирование мощностей множеств и подсчёт их количества,
+        // измеряется время выполнения цепочки
 
+        auto t1 = std::chrono::high_resolution_clock::now();
+        if (debug) cout << "\n=== A^=B ===";
+        A ^= B;   DebOut(A); Used(A);
 
-	OneTwoTree A2 = { 5, 7, 12 };
-	A2.Display("A1");
-	cin.get();
-	clrscr();
-	OneTwoTree B2 = { 7, 12, 19, 31, 41 };
-	B2.Display("B1");
-	cin.get();
-	clrscr();
+        if (debug) C.Display(); Used(C);
+        if (debug) cout << "\n=== A|=C ===";
+        A |= C;  DebOut(A); Used(A);
 
+        //PrepareAnd(A, D, q_and, key_lim);
+        if(debug) cout << "\n=== A&=D ===";
+        if (debug) D.Display();  Used(D);
+        A &= D; DebOut(R);	Used(R);
 
-	A2.concat(B2);
-	A2.Display("A2 concat B2");
-	cin.get();
-	clrscr();
+        if (debug) E.Display(); Used(E);
+        if (debug) cout << "\n=== A|=E ===";
+        A |= E;  DebOut(A); Used(A);
 
+        //Последовательности
+        int e = rand(A.get_seq_size());
+        if (debug) cout <<
+            "\n=== A.Change (G, " << e << ") ===";
+        if (debug) G.Display(); Used(G);
+        A.change(G, e);   DebOut(A);   Used(A);
 
-	OneTwoTree A3 = { 5, 7, 12 };
-	A3.Display("A1");
-	cin.get();
-	clrscr();
+        if (debug) cout << "\n=== A.Concat(H) ===";
+        if (debug) H.Display(); Used(H);
+        A.concat(H);   DebOut(A);   Used(A);
 
-	OneTwoTree B3 = { 7, 12, 19, 31, 41 };
-	B3.Display("B1");
-	cin.get();
-	clrscr();
+        if (debug) cout << "\n=== A.Merge(R) ===";
+        if (debug) R.Display(); Used(R);
+        A.merge(R);   DebOut(A);   Used(A);
+        auto t2 =
+            std::chrono::high_resolution_clock::now();
+        auto dt = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
+        middle_power /= set_count;
 
-
-	B3.change(A3, 1);
-	B3.Display("B3.change(A3, 1)");
-	cin.get();
-	clrscr();
-
-
-	//Џробуем concat на неупорЯдоченных последовательностЯх
-	OneTwoTree A4 = { 5, 7, 12 };
-	A4.Display("A1");
-	cin.get();
-	clrscr();
-
-	OneTwoTree B4 = { 37, 10, 12 };
-	B4.Display("B1");
-	cin.get();
-	clrscr();
-
-
-	A4.concat(B4);
-	A4.Display("A4 concat B4");
-	cin.get();
-	clrscr();
-	//Џроверка индексации и поиска
-	auto got_by_index = A4[4];
-	auto index = A4.findInd(got_by_index);
-	std::cout << "Key: " << (got_by_index->key) << " Index: " << index;
+        fout << middle_power << "  " << dt.count() << std::endl; //Выдача в файл
+        cout << "\n=== Конец === (" << p << " : " <<
+            set_count << " * " <<
+            middle_power << " DT=" << (dt.count()) << ")\n";
+        set_count = 0;
+        middle_power = 0;
+    }
+    cin.get();
+    return 0;
 }
 
 
